@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Poisson Goal Distributions</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:      #0d0f14;
+      --surface: #161a24;
+      --border:  #2a3147;
+      --text:    #e8eaf0;
+      --muted:   #7a8099;
+      --home:    #3b82f6;
+      --away:    #ef4444;
+      --font:    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      min-height: 100dvh;
+      padding: 24px 16px;
+    }
+
+    h1 {
+      font-size: 1.15rem;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+    .subtitle {
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin-bottom: 24px;
+      line-height: 1.5;
+    }
+
+    /* ── Controls ─────────────────────────────────── */
+    .controls {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+    .control-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px;
+    }
+    .control-card.home { border-top: 3px solid var(--home); }
+    .control-card.away { border-top: 3px solid var(--away); }
+
+    .control-label {
+      font-size: 0.72rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 8px;
+    }
+    .control-label.home { color: var(--home); }
+    .control-label.away { color: var(--away); }
+
+    .team-name {
+      font-size: 0.88rem;
+      font-weight: 700;
+      margin-bottom: 10px;
+    }
+
+    .slider-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    input[type=range] {
+      flex: 1;
+      accent-color: var(--home);
+      height: 4px;
+    }
+    .away input[type=range] { accent-color: var(--away); }
+    .lambda-val {
+      font-size: 1.1rem;
+      font-weight: 800;
+      min-width: 34px;
+      text-align: right;
+    }
+    .lambda-val.home { color: var(--home); }
+    .lambda-val.away { color: var(--away); }
+    .lambda-label {
+      font-size: 0.68rem;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+
+    /* ── Chart ────────────────────────────────────── */
+    .chart-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+    .chart-title {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--muted);
+      margin-bottom: 14px;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+
+    .bars-wrap {
+      display: flex;
+      align-items: flex-end;
+      gap: 6px;
+      height: 160px;
+      padding-bottom: 24px;
+      position: relative;
+    }
+
+    .bar-group {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      height: 100%;
+      justify-content: flex-end;
+      position: relative;
+    }
+
+    .bar-pair {
+      display: flex;
+      align-items: flex-end;
+      gap: 2px;
+      width: 100%;
+      height: calc(100% - 20px);
+    }
+
+    .bar {
+      flex: 1;
+      border-radius: 3px 3px 0 0;
+      transition: height 0.35s ease;
+      min-height: 2px;
+      position: relative;
+    }
+    .bar.home { background: var(--home); opacity: 0.85; }
+    .bar.away { background: var(--away); opacity: 0.85; }
+
+    .bar-x-label {
+      position: absolute;
+      bottom: -20px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 0.7rem;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+
+    /* ── Legend ───────────────────────────────────── */
+    .legend {
+      display: flex;
+      gap: 16px;
+      margin-top: 8px;
+      justify-content: center;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+    .legend-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 2px;
+    }
+    .legend-dot.home { background: var(--home); }
+    .legend-dot.away { background: var(--away); }
+
+    /* ── Outcome box ──────────────────────────────── */
+    .outcome-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+    .outcome-title {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--muted);
+      margin-bottom: 14px;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+    .outcome-bars { display: flex; flex-direction: column; gap: 10px; }
+
+    .outcome-row { display: flex; align-items: center; gap: 10px; }
+    .outcome-label {
+      font-size: 0.78rem;
+      width: 72px;
+      flex-shrink: 0;
+      font-weight: 600;
+    }
+    .outcome-track {
+      flex: 1;
+      height: 10px;
+      background: #1e2433;
+      border-radius: 5px;
+      overflow: hidden;
+    }
+    .outcome-fill {
+      height: 100%;
+      border-radius: 5px;
+      transition: width 0.4s ease;
+    }
+    .outcome-pct {
+      font-size: 0.82rem;
+      font-weight: 700;
+      width: 44px;
+      text-align: right;
+    }
+    .outcome-odds {
+      font-size: 0.72rem;
+      color: var(--muted);
+      width: 36px;
+      text-align: right;
+    }
+
+    /* ── Explainer ───────────────────────────────── */
+    .explainer {
+      background: #161a24;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px 16px;
+      font-size: 0.78rem;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+    .explainer strong { color: var(--text); }
+
+    /* ── Simulation counter ───────────────────────── */
+    .sim-note {
+      text-align: center;
+      font-size: 0.7rem;
+      color: var(--muted);
+      margin-top: 8px;
+    }
+  </style>
+</head>
+<body>
+
+<h1>⚽ Poisson Goal Distributions</h1>
+<p class="subtitle">
+  Drag the sliders to set each team's expected goals (λ). The bars show the
+  probability of scoring exactly 0, 1, 2 … goals — drawn independently from
+  two Poisson distributions. Outcome probabilities are estimated from 50,000 simulated matches.
+</p>
+
+<!-- Controls -->
+<div class="controls">
+  <div class="control-card home">
+    <div class="control-label home">Home</div>
+    <div class="team-name" id="home-name">Man City</div>
+    <div class="slider-row">
+      <input type="range" id="home-lambda" min="0.3" max="4.0" step="0.05" value="1.8" oninput="update()" />
+      <span class="lambda-val home" id="home-lambda-val">1.80</span>
+    </div>
+    <div class="lambda-label">λ = expected goals</div>
+  </div>
+  <div class="control-card away">
+    <div class="control-label away">Away</div>
+    <div class="team-name" id="away-name">Arsenal</div>
+    <div class="slider-row">
+      <input type="range" id="away-lambda" min="0.3" max="4.0" step="0.05" value="1.2" oninput="update()" />
+      <span class="lambda-val away" id="away-lambda-val">1.20</span>
+    </div>
+    <div class="lambda-label">λ = expected goals</div>
+  </div>
+</div>
+
+<!-- Distribution chart -->
+<div class="chart-card">
+  <div class="chart-title">P(goals = k) for k = 0 … 7</div>
+  <div class="bars-wrap" id="bars-wrap"></div>
+  <div class="legend">
+    <div class="legend-item"><div class="legend-dot home"></div>Home</div>
+    <div class="legend-item"><div class="legend-dot away"></div>Away</div>
+  </div>
+</div>
+
+<!-- Outcome probabilities -->
+<div class="outcome-card">
+  <div class="outcome-title">Match outcome — 50,000 simulations</div>
+  <div class="outcome-bars">
+    <div class="outcome-row">
+      <span class="outcome-label" style="color:#3b82f6">Home Win</span>
+      <div class="outcome-track"><div class="outcome-fill" id="fill-h" style="background:#3b82f6"></div></div>
+      <span class="outcome-pct" id="pct-h" style="color:#3b82f6">—</span>
+      <span class="outcome-odds" id="odds-h">—</span>
+    </div>
+    <div class="outcome-row">
+      <span class="outcome-label" style="color:#ffc107">Draw</span>
+      <div class="outcome-track"><div class="outcome-fill" id="fill-d" style="background:#ffc107"></div></div>
+      <span class="outcome-pct" id="pct-d" style="color:#ffc107">—</span>
+      <span class="outcome-odds" id="odds-d">—</span>
+    </div>
+    <div class="outcome-row">
+      <span class="outcome-label" style="color:#ef4444">Away Win</span>
+      <div class="outcome-track"><div class="outcome-fill" id="fill-a" style="background:#ef4444"></div></div>
+      <span class="outcome-pct" id="pct-a" style="color:#ef4444">—</span>
+      <span class="outcome-odds" id="odds-a">—</span>
+    </div>
+  </div>
+  <p class="sim-note" id="sim-note"></p>
+</div>
+
+<div class="explainer">
+  Each bar pair shows the probability of scoring exactly <strong>k goals</strong>.
+  For each of the 50,000 simulations, one value is drawn from <strong style="color:#3b82f6">Home Poisson(λ)</strong>
+  and one from <strong style="color:#ef4444">Away Poisson(λ)</strong> — independently.
+  Whichever is higher wins. Equal = Draw. The outcome percentages are just the
+  counts across all 50,000 simulations. <strong>Decimal odds = 100 ÷ %.</strong>
+</div>
+
+<script>
+// ── Poisson PMF ──────────────────────────────────────────────
+function poissonPMF(k, lambda) {
+  // P(X = k) = e^(-λ) * λ^k / k!
+  let logP = -lambda + k * Math.log(lambda);
+  for (let i = 2; i <= k; i++) logP -= Math.log(i);
+  return Math.exp(logP);
+}
+
+// ── Fast simulation using inverse CDF (no random library needed) ─
+function samplePoisson(lambda) {
+  const L = Math.exp(-lambda);
+  let k = 0, p = 1;
+  do { p *= Math.random(); k++; } while (p > L);
+  return k - 1;
+}
+
+// ── Simulate N matches ────────────────────────────────────────
+function simulate(lambdaH, lambdaA, N = 50000) {
+  let hw = 0, d = 0, aw = 0;
+  for (let i = 0; i < N; i++) {
+    const h = samplePoisson(lambdaH);
+    const a = samplePoisson(lambdaA);
+    if (h > a) hw++;
+    else if (h === a) d++;
+    else aw++;
+  }
+  return { hw, d, aw, N };
+}
+
+// ── Build bar chart ───────────────────────────────────────────
+function buildBars() {
+  const wrap = document.getElementById('bars-wrap');
+  wrap.innerHTML = '';
+  for (let k = 0; k <= 7; k++) {
+    const group = document.createElement('div');
+    group.className = 'bar-group';
+    group.innerHTML = `
+      <div class="bar-pair">
+        <div class="bar home" id="bar-h-${k}"></div>
+        <div class="bar away" id="bar-a-${k}"></div>
+      </div>
+      <span class="bar-x-label">${k}</span>`;
+    wrap.appendChild(group);
+  }
+}
+
+// ── Update everything ─────────────────────────────────────────
+function update() {
+  const lH = parseFloat(document.getElementById('home-lambda').value);
+  const lA = parseFloat(document.getElementById('away-lambda').value);
+
+  document.getElementById('home-lambda-val').textContent = lH.toFixed(2);
+  document.getElementById('away-lambda-val').textContent = lA.toFixed(2);
+
+  // Compute PMF values for k = 0..7
+  const pmfH = [], pmfA = [];
+  let maxP = 0;
+  for (let k = 0; k <= 7; k++) {
+    const ph = poissonPMF(k, lH);
+    const pa = poissonPMF(k, lA);
+    pmfH.push(ph);
+    pmfA.push(pa);
+    maxP = Math.max(maxP, ph, pa);
+  }
+
+  // Update bar heights
+  const BAR_HEIGHT = 136; // px (chart height minus label space)
+  for (let k = 0; k <= 7; k++) {
+    const bh = document.getElementById(`bar-h-${k}`);
+    const ba = document.getElementById(`bar-a-${k}`);
+    if (bh) bh.style.height = (pmfH[k] / maxP * BAR_HEIGHT) + 'px';
+    if (ba) ba.style.height = (pmfA[k] / maxP * BAR_HEIGHT) + 'px';
+    if (bh) bh.title = `Home P(${k} goals) = ${(pmfH[k]*100).toFixed(1)}%`;
+    if (ba) ba.title = `Away P(${k} goals) = ${(pmfA[k]*100).toFixed(1)}%`;
+  }
+
+  // Run simulation for outcome probabilities
+  const { hw, d, aw, N } = simulate(lH, lA);
+  const pH = hw / N * 100;
+  const pD = d  / N * 100;
+  const pA = aw / N * 100;
+
+  setOutcome('h', pH);
+  setOutcome('d', pD);
+  setOutcome('a', pA);
+
+  document.getElementById('sim-note').textContent =
+    `Based on ${N.toLocaleString()} simulated matches`;
+}
+
+function setOutcome(key, pct) {
+  document.getElementById(`fill-${key}`).style.width = pct.toFixed(1) + '%';
+  document.getElementById(`pct-${key}`).textContent  = pct.toFixed(1) + '%';
+  const odds = pct > 0 ? (100 / pct).toFixed(2) : '—';
+  document.getElementById(`odds-${key}`).textContent = odds;
+}
+
+// ── Init ──────────────────────────────────────────────────────
+buildBars();
+update();
+</script>
+</body>
+</html>
