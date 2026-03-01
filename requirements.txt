@@ -1,0 +1,6 @@
+understat==0.3.1
+aiohttp==3.9.5
+supabase==2.5.0
+numpy==1.26.4
+scipy==1.13.0
+python-dotenv==1.0.1

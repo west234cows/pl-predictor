@@ -1,0 +1,52 @@
+name: PL Predictions Pipeline
+
+on:
+  schedule:
+    # ── Thursday 09:00 UTC — generate predictions before weekend fixtures ──
+    - cron: "0 9 * * 4"
+    # ── Monday 09:00 UTC — reconcile weekend results ──
+    - cron: "0 9 * * 1"
+    # ── Friday 09:00 UTC — top-up before Friday night game ──
+    - cron: "0 9 * * 5"
+
+  # Allow manual trigger from the GitHub Actions UI at any time
+  workflow_dispatch:
+
+jobs:
+  predict:
+    name: Fetch → Simulate → Store
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      # ── 1. Checkout ──────────────────────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ── 2. Python setup ──────────────────────────────────────────────────
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      # ── 3. Install dependencies ──────────────────────────────────────────
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      # ── 4. Run pipeline ──────────────────────────────────────────────────
+      - name: Run predictions pipeline
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+        run: python src/main.py
+
+      # ── 5. Notify on failure (optional — remove if not needed) ──────────
+      - name: Report status
+        if: always()
+        run: |
+          if [ "${{ job.status }}" == "success" ]; then
+            echo "✅ Pipeline completed successfully"
+          else
+            echo "❌ Pipeline failed — check logs above"
+          fi

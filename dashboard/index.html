@@ -1,0 +1,865 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>PL Predictor</title>
+  <style>
+    /* ── Reset & Variables ─────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0d0f14;
+      --surface:   #161a24;
+      --surface2:  #1e2433;
+      --border:    #2a3147;
+      --text:      #e8eaf0;
+      --muted:     #7a8099;
+      --purple:    #6c5ce7;
+      --green:     #00c896;
+      --yellow:    #ffc107;
+      --red:       #e74c3c;
+      --radius:    14px;
+      --font:      -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+
+    html { font-size: 15px; -webkit-tap-highlight-color: transparent; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      min-height: 100dvh;
+      padding-bottom: env(safe-area-inset-bottom, 20px);
+    }
+
+    /* ── Header ────────────────────────────────────────────────── */
+    header {
+      background: linear-gradient(135deg, #1a0535 0%, #0d1b3e 100%);
+      padding: 18px 20px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      border-bottom: 1px solid var(--border);
+    }
+    .header-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .pl-badge {
+      width: 32px;
+      height: 32px;
+      background: var(--purple);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 13px;
+      color: #fff;
+      letter-spacing: -0.5px;
+    }
+    h1 { font-size: 1.1rem; font-weight: 700; letter-spacing: -0.3px; }
+    .subtitle { font-size: 0.7rem; color: var(--muted); margin-top: 1px; }
+    #refresh-btn {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 8px;
+      padding: 6px 12px;
+      font-size: 0.78rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      transition: background 0.15s;
+    }
+    #refresh-btn:hover { background: var(--border); }
+    #refresh-btn.spinning .icon { animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Tabs ──────────────────────────────────────────────────── */
+    .tabs {
+      display: flex;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+    .tabs::-webkit-scrollbar { display: none; }
+    .tab {
+      flex: 1;
+      min-width: 100px;
+      padding: 12px 8px;
+      text-align: center;
+      font-size: 0.82rem;
+      font-weight: 500;
+      color: var(--muted);
+      cursor: pointer;
+      border-bottom: 3px solid transparent;
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+    .tab.active {
+      color: var(--text);
+      border-bottom-color: var(--purple);
+    }
+
+    /* ── Main content ──────────────────────────────────────────── */
+    main { padding: 16px; max-width: 640px; margin: 0 auto; }
+
+    .section { display: none; }
+    .section.active { display: block; }
+
+    /* ── Setup banner ──────────────────────────────────────────── */
+    .setup-banner {
+      background: linear-gradient(135deg, #1a0d35, #0d1b3e);
+      border: 1px solid var(--purple);
+      border-radius: var(--radius);
+      padding: 18px;
+      margin-bottom: 16px;
+    }
+    .setup-banner h2 { font-size: 0.95rem; margin-bottom: 8px; }
+    .setup-banner p  { font-size: 0.8rem; color: var(--muted); line-height: 1.5; }
+    .setup-banner code {
+      background: rgba(108,92,231,0.2);
+      border-radius: 4px;
+      padding: 1px 5px;
+      font-size: 0.78rem;
+      word-break: break-all;
+    }
+    .config-form { margin-top: 14px; display: flex; flex-direction: column; gap: 10px; }
+    .config-form input {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      padding: 10px 12px;
+      font-size: 0.82rem;
+      width: 100%;
+    }
+    .config-form input::placeholder { color: var(--muted); }
+    .config-form input:focus { outline: none; border-color: var(--purple); }
+    .save-btn {
+      background: var(--purple);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 10px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    /* ── Status message ────────────────────────────────────────── */
+    #status-msg {
+      text-align: center;
+      padding: 32px 16px;
+      color: var(--muted);
+      font-size: 0.88rem;
+    }
+    .spinner {
+      width: 28px; height: 28px;
+      border: 3px solid var(--border);
+      border-top-color: var(--purple);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 0 auto 12px;
+    }
+    .error-msg { color: var(--red); }
+
+    /* ── Fixture card ──────────────────────────────────────────── */
+    .fixture-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+      margin-bottom: 12px;
+    }
+    .fixture-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+    .fixture-date {
+      font-size: 0.72rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+    .fixture-status {
+      font-size: 0.7rem;
+      padding: 2px 8px;
+      border-radius: 20px;
+      font-weight: 600;
+    }
+    .status-upcoming { background: rgba(108,92,231,0.2); color: var(--purple); }
+    .status-completed { background: rgba(0,200,150,0.15); color: var(--green); }
+
+    .teams-row {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+    .team-name {
+      font-size: 0.92rem;
+      font-weight: 700;
+      line-height: 1.2;
+    }
+    .team-home { text-align: left; }
+    .team-away { text-align: right; }
+
+    .vs-box {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+    }
+    .vs-text { font-size: 0.7rem; color: var(--muted); font-weight: 500; }
+    .score-display {
+      font-size: 1.3rem;
+      font-weight: 800;
+      letter-spacing: 1px;
+      color: var(--text);
+    }
+    .score-display.no-result { font-size: 0.75rem; color: var(--muted); }
+
+    /* Probability bars */
+    .prob-section { margin-top: 4px; }
+    .prob-labels {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      margin-bottom: 4px;
+    }
+    .prob-label {
+      font-size: 0.68rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+    .prob-label:nth-child(2) { text-align: center; }
+    .prob-label:nth-child(3) { text-align: right; }
+
+    .bar-track {
+      display: flex;
+      height: 8px;
+      border-radius: 4px;
+      overflow: hidden;
+      gap: 2px;
+    }
+    .bar-h { background: var(--green);  border-radius: 4px 0 0 4px; transition: width 0.5s ease; }
+    .bar-d { background: var(--yellow); transition: width 0.5s ease; }
+    .bar-a { background: var(--red);    border-radius: 0 4px 4px 0; transition: width 0.5s ease; }
+
+    .prob-values {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      margin-top: 5px;
+    }
+    .prob-val {
+      font-size: 0.9rem;
+      font-weight: 700;
+    }
+    .prob-val.h-win { color: var(--green); }
+    .prob-val.draw  { color: var(--yellow); text-align: center; }
+    .prob-val.a-win { color: var(--red);   text-align: right; }
+
+    .xg-row {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px solid var(--border);
+    }
+    .xg-item { text-align: center; }
+    .xg-label { font-size: 0.65rem; color: var(--muted); text-transform: uppercase; }
+    .xg-value { font-size: 0.85rem; font-weight: 600; margin-top: 2px; }
+
+    /* Result outcome pill */
+    .outcome-row {
+      display: flex;
+      justify-content: center;
+      margin-top: 10px;
+    }
+    .outcome-pill {
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 3px 12px;
+      border-radius: 20px;
+      letter-spacing: 0.5px;
+    }
+    .outcome-correct   { background: rgba(0,200,150,0.15); color: var(--green);  }
+    .outcome-incorrect { background: rgba(231,76,60,0.15);  color: var(--red);   }
+
+    /* ── Stats section ─────────────────────────────────────────── */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+      text-align: center;
+    }
+    .stat-value {
+      font-size: 2rem;
+      font-weight: 800;
+      line-height: 1;
+      margin-bottom: 4px;
+    }
+    .stat-label { font-size: 0.75rem; color: var(--muted); }
+
+    .accuracy-bar-wrap {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+      margin-bottom: 12px;
+    }
+    .accuracy-bar-wrap h3 { font-size: 0.88rem; margin-bottom: 12px; }
+    .acc-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+    .acc-row-label { font-size: 0.78rem; color: var(--muted); width: 90px; flex-shrink: 0; }
+    .acc-track {
+      flex: 1;
+      height: 8px;
+      background: var(--surface2);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    .acc-fill {
+      height: 100%;
+      border-radius: 4px;
+      background: var(--purple);
+      transition: width 0.6s ease;
+    }
+    .acc-pct { font-size: 0.78rem; font-weight: 600; width: 38px; text-align: right; }
+
+    /* ── Footer ────────────────────────────────────────────────── */
+    footer {
+      text-align: center;
+      font-size: 0.68rem;
+      color: var(--muted);
+      padding: 24px 16px 8px;
+    }
+    footer a { color: var(--muted); }
+
+    /* ── Responsive tweak for wider screens ────────────────────── */
+    @media (min-width: 500px) {
+      .team-name { font-size: 1rem; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ══════════════════ HEADER ══════════════════ -->
+<header>
+  <div class="header-title">
+    <div class="pl-badge">PL</div>
+    <div>
+      <h1>PL Predictor</h1>
+      <div class="subtitle" id="last-updated">Loading…</div>
+    </div>
+  </div>
+  <button id="refresh-btn" onclick="loadAll()">
+    <span class="icon">↺</span> Refresh
+  </button>
+</header>
+
+<!-- ══════════════════ TABS ══════════════════ -->
+<div class="tabs">
+  <div class="tab active" onclick="switchTab('upcoming', this)">🔮 Upcoming</div>
+  <div class="tab"        onclick="switchTab('results',  this)">📊 Results</div>
+  <div class="tab"        onclick="switchTab('stats',    this)">🏆 Stats</div>
+  <div class="tab"        onclick="switchTab('setup',    this)">⚙️ Setup</div>
+</div>
+
+<!-- ══════════════════ MAIN ══════════════════ -->
+<main>
+
+  <!-- ── Setup ───────────────────────────────────────────────── -->
+  <section id="setup" class="section">
+    <div class="setup-banner">
+      <h2>🔧 Connect to Supabase</h2>
+      <p>
+        Enter your Supabase project URL and <strong>anon</strong> (public) key.
+        These are stored only in your browser's local storage and never sent anywhere else.
+        Find them in your Supabase dashboard under
+        <code>Project Settings → API</code>.
+      </p>
+      <div class="config-form">
+        <input type="text"     id="cfg-url" placeholder="https://xxxx.supabase.co" autocomplete="off" />
+        <input type="password" id="cfg-key" placeholder="Supabase anon key (eyJ…)" autocomplete="off" />
+        <button class="save-btn" onclick="saveConfig()">Save & Connect</button>
+      </div>
+    </div>
+    <div class="setup-banner" style="border-color: var(--border);">
+      <h2>ℹ️ About this app</h2>
+      <p>
+        Predictions are generated by a Poisson Monte Carlo model (100,000 simulations)
+        using rolling expected-goals (xG) data from Understat. The pipeline runs automatically
+        via GitHub Actions every Thursday and Monday — no server required.
+        <br /><br />
+        Model: <code>v1.1-poisson-dc</code> (Dixon-Coles low-score correction applied).
+      </p>
+    </div>
+  </section>
+
+  <!-- ── Upcoming predictions ────────────────────────────────── -->
+  <section id="upcoming" class="section active">
+    <div id="upcoming-status" class=""></div>
+    <div id="upcoming-list"></div>
+  </section>
+
+  <!-- ── Past results ─────────────────────────────────────────── -->
+  <section id="results" class="section">
+    <div id="results-status" class=""></div>
+    <div id="results-list"></div>
+  </section>
+
+  <!-- ── Stats ────────────────────────────────────────────────── -->
+  <section id="stats" class="section">
+    <div id="stats-status" class=""></div>
+    <div id="stats-content"></div>
+  </section>
+
+</main>
+
+<footer>
+  Data: <a href="https://understat.com" target="_blank">Understat</a> ·
+  Powered by Supabase + GitHub Actions
+</footer>
+
+<script>
+// ══════════════════════════════════════════════════════════════
+//  CONFIG
+// ══════════════════════════════════════════════════════════════
+const LS_URL_KEY = 'pl_supabase_url';
+const LS_KEY_KEY = 'pl_supabase_key';
+
+function getConfig() {
+  return {
+    url: localStorage.getItem(LS_URL_KEY) || '',
+    key: localStorage.getItem(LS_KEY_KEY) || '',
+  };
+}
+
+function saveConfig() {
+  const url = document.getElementById('cfg-url').value.trim().replace(/\/$/, '');
+  const key = document.getElementById('cfg-key').value.trim();
+  if (!url || !key) { alert('Please enter both URL and key.'); return; }
+  localStorage.setItem(LS_URL_KEY, url);
+  localStorage.setItem(LS_KEY_KEY, key);
+  alert('✅ Config saved! Loading data…');
+  switchTab('upcoming', document.querySelector('.tab'));
+  loadAll();
+}
+
+// Pre-fill saved values on load
+window.addEventListener('DOMContentLoaded', () => {
+  const cfg = getConfig();
+  if (cfg.url) document.getElementById('cfg-url').value = cfg.url;
+  if (cfg.key) document.getElementById('cfg-key').value = cfg.key;
+  loadAll();
+});
+
+
+// ══════════════════════════════════════════════════════════════
+//  TABS
+// ══════════════════════════════════════════════════════════════
+function switchTab(name, el) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.getElementById(name).classList.add('active');
+}
+
+
+// ══════════════════════════════════════════════════════════════
+//  SUPABASE REST HELPER
+// ══════════════════════════════════════════════════════════════
+async function sbFetch(path, params = {}) {
+  const cfg = getConfig();
+  if (!cfg.url || !cfg.key) return null;
+
+  const qs = new URLSearchParams(params).toString();
+  const url = `${cfg.url}/rest/v1/${path}${qs ? '?' + qs : ''}`;
+
+  const res = await fetch(url, {
+    headers: {
+      'apikey':        cfg.key,
+      'Authorization': `Bearer ${cfg.key}`,
+      'Accept':        'application/json',
+    },
+  });
+
+  if (!res.ok) throw new Error(`Supabase error ${res.status}: ${await res.text()}`);
+  return res.json();
+}
+
+
+// ══════════════════════════════════════════════════════════════
+//  LOAD ALL DATA
+// ══════════════════════════════════════════════════════════════
+async function loadAll() {
+  const btn = document.getElementById('refresh-btn');
+  btn.classList.add('spinning');
+
+  try {
+    const cfg = getConfig();
+    if (!cfg.url || !cfg.key) {
+      setStatus('upcoming-status', 'noConfig');
+      setStatus('results-status',  'noConfig');
+      setStatus('stats-status',    'noConfig');
+      return;
+    }
+
+    await Promise.all([loadUpcoming(), loadResults()]);
+    renderStats();
+    document.getElementById('last-updated').textContent =
+      'Updated ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  } catch (e) {
+    console.error(e);
+    setStatus('upcoming-status', 'error', e.message);
+  } finally {
+    btn.classList.remove('spinning');
+  }
+}
+
+
+// ══════════════════════════════════════════════════════════════
+//  UPCOMING PREDICTIONS
+// ══════════════════════════════════════════════════════════════
+let _upcoming = [];
+
+async function loadUpcoming() {
+  setStatus('upcoming-status', 'loading');
+  try {
+    const rows = await sbFetch('vw_upcoming_predictions', {
+      select: '*',
+      order:  'match_date.asc',
+      limit:  '50',
+    });
+
+    _upcoming = rows || [];
+    const list = document.getElementById('upcoming-list');
+    list.innerHTML = '';
+
+    if (!_upcoming.length) {
+      setStatus('upcoming-status', 'empty', 'No upcoming predictions found. Run the pipeline first!');
+      return;
+    }
+    setStatus('upcoming-status', '');
+
+    // Group by date
+    const byDate = groupByDate(_upcoming);
+    for (const [date, fixtures] of Object.entries(byDate)) {
+      const label = document.createElement('p');
+      label.style.cssText = 'font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin:12px 0 8px;font-weight:600;';
+      label.textContent = formatDateHeader(date);
+      list.appendChild(label);
+      fixtures.forEach(f => list.appendChild(buildPredictionCard(f)));
+    }
+  } catch (e) {
+    setStatus('upcoming-status', 'error', e.message);
+  }
+}
+
+function buildPredictionCard(f) {
+  const card = document.createElement('div');
+  card.className = 'fixture-card';
+
+  const h = f.home_win_pct ?? 0;
+  const d = f.draw_pct ?? 0;
+  const a = f.away_win_pct ?? 0;
+
+  const bestClass = h > d && h > a ? 'h-win' : d > h && d > a ? 'draw' : 'a-win';
+
+  card.innerHTML = `
+    <div class="fixture-header">
+      <span class="fixture-date">${formatTime(f.match_date)}</span>
+      <span class="fixture-status status-upcoming">Upcoming</span>
+    </div>
+    <div class="teams-row">
+      <div class="team-name team-home">${f.home_team}</div>
+      <div class="vs-box">
+        <span class="vs-text">VS</span>
+      </div>
+      <div class="team-name team-away">${f.away_team}</div>
+    </div>
+    <div class="prob-section">
+      <div class="prob-labels">
+        <span class="prob-label">Home</span>
+        <span class="prob-label">Draw</span>
+        <span class="prob-label">Away</span>
+      </div>
+      <div class="bar-track">
+        <div class="bar-h" style="width:${h}%"></div>
+        <div class="bar-d" style="width:${d}%"></div>
+        <div class="bar-a" style="width:${a}%"></div>
+      </div>
+      <div class="prob-values">
+        <span class="prob-val h-win">${h.toFixed(1)}%</span>
+        <span class="prob-val draw">${d.toFixed(1)}%</span>
+        <span class="prob-val a-win">${a.toFixed(1)}%</span>
+      </div>
+    </div>
+    <div class="xg-row">
+      <div class="xg-item">
+        <div class="xg-label">Pred. xG</div>
+        <div class="xg-value">${(f.predicted_home_goals ?? 0).toFixed(2)}</div>
+      </div>
+      <div class="xg-item">
+        <div class="xg-label">Model</div>
+        <div class="xg-value" style="font-size:.68rem;color:var(--muted)">${f.model_version ?? ''}</div>
+      </div>
+      <div class="xg-item">
+        <div class="xg-label">Pred. xG</div>
+        <div class="xg-value">${(f.predicted_away_goals ?? 0).toFixed(2)}</div>
+      </div>
+    </div>`;
+  return card;
+}
+
+
+// ══════════════════════════════════════════════════════════════
+//  PAST RESULTS
+// ══════════════════════════════════════════════════════════════
+let _results = [];
+
+async function loadResults() {
+  setStatus('results-status', 'loading');
+  try {
+    const rows = await sbFetch('vw_results_vs_predictions', {
+      select: '*',
+      order:  'match_date.desc',
+      limit:  '40',
+    });
+
+    _results = rows || [];
+    const list = document.getElementById('results-list');
+    list.innerHTML = '';
+
+    if (!_results.length) {
+      setStatus('results-status', 'empty', 'No completed results yet.');
+      return;
+    }
+    setStatus('results-status', '');
+    _results.forEach(r => list.appendChild(buildResultCard(r)));
+  } catch (e) {
+    setStatus('results-status', 'error', e.message);
+  }
+}
+
+function buildResultCard(r) {
+  const card = document.createElement('div');
+  card.className = 'fixture-card';
+
+  const h = r.home_win_pct ?? 0;
+  const d = r.draw_pct ?? 0;
+  const a = r.away_win_pct ?? 0;
+
+  const predicted = r.predicted_favourite;
+  const actual    = r.actual_outcome;
+  const correct   = predicted === actual;
+
+  const outcomeLabel = { H: 'Home Win', D: 'Draw', A: 'Away Win' };
+
+  card.innerHTML = `
+    <div class="fixture-header">
+      <span class="fixture-date">${formatDateShort(r.match_date)}</span>
+      <span class="fixture-status status-completed">FT</span>
+    </div>
+    <div class="teams-row">
+      <div class="team-name team-home">${r.home_team}</div>
+      <div class="vs-box">
+        <span class="score-display">${r.home_goals} – ${r.away_goals}</span>
+      </div>
+      <div class="team-name team-away">${r.away_team}</div>
+    </div>
+    <div class="prob-section">
+      <div class="prob-labels">
+        <span class="prob-label">Home</span>
+        <span class="prob-label">Draw</span>
+        <span class="prob-label">Away</span>
+      </div>
+      <div class="bar-track">
+        <div class="bar-h" style="width:${h}%"></div>
+        <div class="bar-d" style="width:${d}%"></div>
+        <div class="bar-a" style="width:${a}%"></div>
+      </div>
+      <div class="prob-values">
+        <span class="prob-val h-win">${h.toFixed(1)}%</span>
+        <span class="prob-val draw">${d.toFixed(1)}%</span>
+        <span class="prob-val a-win">${a.toFixed(1)}%</span>
+      </div>
+    </div>
+    ${r.actual_home_xg != null ? `
+    <div class="xg-row">
+      <div class="xg-item">
+        <div class="xg-label">Actual xG</div>
+        <div class="xg-value">${(+r.actual_home_xg).toFixed(2)}</div>
+      </div>
+      <div class="xg-item">
+        <div class="xg-label">Pred xG</div>
+        <div class="xg-value" style="font-size:.72rem">
+          ${(r.predicted_home_goals??0).toFixed(2)} / ${(r.predicted_away_goals??0).toFixed(2)}
+        </div>
+      </div>
+      <div class="xg-item">
+        <div class="xg-label">Actual xG</div>
+        <div class="xg-value">${(+r.actual_away_xg).toFixed(2)}</div>
+      </div>
+    </div>` : ''}
+    <div class="outcome-row">
+      <span class="outcome-pill ${correct ? 'outcome-correct' : 'outcome-incorrect'}">
+        ${correct ? '✓' : '✗'} Predicted: ${outcomeLabel[predicted] ?? predicted} · Actual: ${outcomeLabel[actual] ?? actual}
+      </span>
+    </div>`;
+  return card;
+}
+
+
+// ══════════════════════════════════════════════════════════════
+//  STATS
+// ══════════════════════════════════════════════════════════════
+function renderStats() {
+  const container = document.getElementById('stats-content');
+  container.innerHTML = '';
+
+  if (!_results.length) {
+    setStatus('stats-status', 'empty', 'No results available yet.');
+    return;
+  }
+  setStatus('stats-status', '');
+
+  const total    = _results.length;
+  const correct  = _results.filter(r => r.predicted_favourite === r.actual_outcome).length;
+  const accuracy = total > 0 ? (correct / total * 100).toFixed(1) : '0.0';
+
+  // Breakdown by outcome type
+  const byType = { H: { correct: 0, total: 0 }, D: { correct: 0, total: 0 }, A: { correct: 0, total: 0 } };
+  _results.forEach(r => {
+    const o = r.actual_outcome;
+    if (byType[o]) {
+      byType[o].total++;
+      if (r.predicted_favourite === o) byType[o].correct++;
+    }
+  });
+
+  // Brier score (lower = better probabilistic calibration)
+  const brierScore = _results.reduce((sum, r) => {
+    const pH = (r.home_win_pct ?? 0) / 100;
+    const pD = (r.draw_pct ?? 0) / 100;
+    const pA = (r.away_win_pct ?? 0) / 100;
+    const o  = r.actual_outcome;
+    const oH = o === 'H' ? 1 : 0;
+    const oD = o === 'D' ? 1 : 0;
+    const oA = o === 'A' ? 1 : 0;
+    return sum + ((pH - oH) ** 2 + (pD - oD) ** 2 + (pA - oA) ** 2);
+  }, 0) / total;
+
+  const statCards = `
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-value" style="color:var(--purple)">${total}</div>
+        <div class="stat-label">Predictions made</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" style="color:var(--green)">${accuracy}%</div>
+        <div class="stat-label">Outcome accuracy</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" style="color:var(--yellow)">${correct}</div>
+        <div class="stat-label">Correct calls</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" style="color:var(--muted);font-size:1.5rem">${brierScore.toFixed(3)}</div>
+        <div class="stat-label">Brier score ↓ better</div>
+      </div>
+    </div>`;
+
+  const typeLabels = { H: 'Home Wins', D: 'Draws', A: 'Away Wins' };
+  let accBars = `<div class="accuracy-bar-wrap"><h3>Accuracy by outcome type</h3>`;
+  for (const [key, label] of Object.entries(typeLabels)) {
+    const t = byType[key].total;
+    const c = byType[key].correct;
+    const pct = t > 0 ? (c / t * 100).toFixed(0) : 0;
+    accBars += `
+      <div class="acc-row">
+        <span class="acc-row-label">${label}</span>
+        <div class="acc-track"><div class="acc-fill" style="width:${pct}%"></div></div>
+        <span class="acc-pct">${pct}%</span>
+      </div>
+      <div style="font-size:.7rem;color:var(--muted);margin:-4px 0 8px 0;padding-left:100px">${c} / ${t} predicted</div>`;
+  }
+  accBars += '</div>';
+
+  container.innerHTML = statCards + accBars;
+}
+
+
+// ══════════════════════════════════════════════════════════════
+//  HELPERS
+// ══════════════════════════════════════════════════════════════
+function setStatus(id, type, msg = '') {
+  const el = document.getElementById(id);
+  if (type === 'loading') {
+    el.innerHTML = `<div id="${id}-msg" style="text-align:center;padding:40px 16px">
+      <div class="spinner"></div>
+      <p style="color:var(--muted);font-size:.85rem">Loading…</p>
+    </div>`;
+  } else if (type === 'error') {
+    el.innerHTML = `<div style="text-align:center;padding:24px;color:var(--red);font-size:.85rem">
+      ⚠️ ${msg}<br><small style="color:var(--muted)">Check your Supabase config in the Setup tab.</small>
+    </div>`;
+  } else if (type === 'empty') {
+    el.innerHTML = `<div style="text-align:center;padding:32px;color:var(--muted);font-size:.85rem">${msg}</div>`;
+  } else if (type === 'noConfig') {
+    el.innerHTML = `<div style="text-align:center;padding:32px;color:var(--muted);font-size:.85rem">
+      ⚙️ Please configure your Supabase credentials in the <strong>Setup</strong> tab.
+    </div>`;
+  } else {
+    el.innerHTML = '';
+  }
+}
+
+function groupByDate(fixtures) {
+  const groups = {};
+  fixtures.forEach(f => {
+    const d = f.match_date.slice(0, 10);
+    if (!groups[d]) groups[d] = [];
+    groups[d].push(f);
+  });
+  return groups;
+}
+
+function formatDateHeader(iso) {
+  return new Date(iso).toLocaleDateString('en-GB', {
+    weekday: 'long', day: 'numeric', month: 'long',
+  });
+}
+
+function formatDateShort(iso) {
+  return new Date(iso).toLocaleDateString('en-GB', {
+    day: 'numeric', month: 'short', year: 'numeric',
+  });
+}
+
+function formatTime(iso) {
+  return new Date(iso).toLocaleTimeString('en-GB', {
+    hour: '2-digit', minute: '2-digit', timeZoneName: 'short',
+  });
+}
+</script>
+</body>
+</html>
