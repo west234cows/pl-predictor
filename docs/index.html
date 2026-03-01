@@ -270,6 +270,19 @@
     .prob-val.draw  { color: var(--yellow); text-align: center; }
     .prob-val.a-win { color: var(--red);   text-align: right; }
 
+    .odds-values {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      margin-top: 3px;
+    }
+    .odds-val {
+      font-size: 0.72rem;
+      color: var(--muted);
+      font-weight: 500;
+    }
+    .odds-val:nth-child(2) { text-align: center; }
+    .odds-val:nth-child(3) { text-align: right; }
+
     .xg-row {
       display: flex;
       justify-content: space-between;
@@ -612,6 +625,11 @@ function buildPredictionCard(f) {
         <span class="prob-val draw">${d.toFixed(1)}%</span>
         <span class="prob-val a-win">${a.toFixed(1)}%</span>
       </div>
+      <div class="odds-values">
+        <span class="odds-val">${toDecimalOdds(h)}</span>
+        <span class="odds-val">${toDecimalOdds(d)}</span>
+        <span class="odds-val">${toDecimalOdds(a)}</span>
+      </div>
     </div>
     <div class="xg-row">
       <div class="xg-item">
@@ -701,6 +719,11 @@ function buildResultCard(r) {
         <span class="prob-val h-win">${h.toFixed(1)}%</span>
         <span class="prob-val draw">${d.toFixed(1)}%</span>
         <span class="prob-val a-win">${a.toFixed(1)}%</span>
+      </div>
+      <div class="odds-values">
+        <span class="odds-val">${toDecimalOdds(h)}</span>
+        <span class="odds-val">${toDecimalOdds(d)}</span>
+        <span class="odds-val">${toDecimalOdds(a)}</span>
       </div>
     </div>
     ${r.actual_home_xg != null ? `
@@ -831,6 +854,11 @@ function setStatus(id, type, msg = '') {
   } else {
     el.innerHTML = '';
   }
+}
+
+function toDecimalOdds(pct) {
+  if (!pct || pct <= 0) return '—';
+  return (100 / pct).toFixed(2);
 }
 
 function groupByDate(fixtures) {
