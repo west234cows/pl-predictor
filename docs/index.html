@@ -459,10 +459,14 @@
 const LS_URL_KEY = 'pl_supabase_url';
 const LS_KEY_KEY = 'pl_supabase_key';
 
+// ── Hardcoded defaults (anon key — read-only, safe to publish) ──
+const DEFAULT_URL = 'https://ivksjigkoknunjgpncnj.supabase.co/';      // e.g. https://xxxx.supabase.co
+const DEFAULT_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml2a3NqaWdrb2tudW5qZ3BuY25qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIzNjE4NDksImV4cCI6MjA4NzkzNzg0OX0.GggXvgnT1dm7H-2w1KbLargSDacAIfPK8DgjmbVHeXY'; // the eyJ… anon/public key
+
 function getConfig() {
   return {
-    url: localStorage.getItem(LS_URL_KEY) || '',
-    key: localStorage.getItem(LS_KEY_KEY) || '',
+    url: localStorage.getItem(LS_URL_KEY) || DEFAULT_URL,
+    key: localStorage.getItem(LS_KEY_KEY) || DEFAULT_KEY,
   };
 }
 
